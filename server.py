@@ -16,8 +16,14 @@ app = FastAPI(title="LEGO Sorter")
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Serve the main mobile page."""
-    with open("index.html", "r") as f:
-        return f.read()
+    try:
+        with open("index.html", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return HTMLResponse(
+            content="<h1>Error: index.html not found</h1>",
+            status_code=500
+        )
 
 
 @app.post("/classify")
@@ -68,6 +74,12 @@ async def classify(
             y1 = max(0, min(y1, height))
             x2 = max(0, min(x2, width))
             y2 = max(0, min(y2, height))
+            
+            # Ensure valid box dimensions (x2 > x1 and y2 > y1)
+            if x2 <= x1:
+                x2 = x1 + 10
+            if y2 <= y1:
+                y2 = y1 + 10
             
             # Random class label
             class_id = random.randint(1, numClasses)

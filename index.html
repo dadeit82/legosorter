@@ -339,10 +339,6 @@
             // Clear previous drawings
             overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-            // Scale factors (canvas vs display size)
-            const scaleX = overlayCanvas.width / video.videoWidth;
-            const scaleY = overlayCanvas.height / video.videoHeight;
-
             detections.forEach((detection, index) => {
                 const [x1, y1, x2, y2] = detection.bbox;
                 const width = x2 - x1;
