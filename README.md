@@ -12,19 +12,51 @@ A FastAPI-based web application for real-time LEGO classification using camera p
 
 ## Setup
 
-1. Install dependencies:
+The project uses a virtual environment to keep dependencies isolated. Use the provided scripts for easy setup:
+
+### Quick Start (Recommended)
+
+1. Run the setup and build script:
 ```bash
-pip install -r requirements.txt
+./setup.sh
+./build.sh
 ```
 
 2. Run the server:
 ```bash
-python server.py
+./run.sh
 ```
 
 3. Open your browser and navigate to:
 ```
 http://localhost:8000
+```
+
+### Helper Scripts
+
+- **`./setup.sh`** - Creates a Python virtual environment
+- **`./build.sh`** - Installs all dependencies in the virtual environment
+- **`./run.sh`** - Runs the FastAPI server using the virtual environment
+- **`./clean.sh`** - Removes the virtual environment and cache files
+
+### Manual Setup (Alternative)
+
+If you prefer to manage dependencies manually:
+
+1. Create and activate a virtual environment:
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Run the server:
+```bash
+python server.py
 ```
 
 ## Usage
