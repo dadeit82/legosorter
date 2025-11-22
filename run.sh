@@ -13,7 +13,8 @@ echo "==================================="
 
 # Check if virtual environment exists
 if [ ! -d "$VENV_DIR" ]; then
-    echo "Virtual environment not found. Running build first..."
+    echo "Virtual environment not found. Running setup and build first..."
+    bash "$SCRIPT_DIR/setup.sh"
     bash "$SCRIPT_DIR/build.sh"
 fi
 
@@ -22,9 +23,8 @@ source "$VENV_DIR/bin/activate"
 
 # Check if dependencies are installed
 if ! python -c "import fastapi" 2>/dev/null; then
-    echo "Dependencies not installed. Running build first..."
+    echo "Dependencies not installed. Running build..."
     bash "$SCRIPT_DIR/build.sh"
-    source "$VENV_DIR/bin/activate"
 fi
 
 # Run the server

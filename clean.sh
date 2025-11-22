@@ -22,7 +22,7 @@ fi
 
 # Remove Python cache files
 echo "Removing Python cache files..."
-find "$SCRIPT_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find "$SCRIPT_DIR" -type d -name "__pycache__" -delete 2>/dev/null || true
 find "$SCRIPT_DIR" -type f -name "*.pyc" -delete 2>/dev/null || true
 find "$SCRIPT_DIR" -type f -name "*.pyo" -delete 2>/dev/null || true
 
