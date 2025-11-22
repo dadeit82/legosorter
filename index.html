@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LEGO Sorter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 100vw;
+            padding: 16px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 2px solid #4a4a4a;
+            border-radius: 8px;
+            background-color: #2a2a2a;
+            color: #ffffff;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #startStopBtn {
+            background-color: #10b981;
+            color: white;
+        }
+
+        #startStopBtn.active {
+            background-color: #ef4444;
+        }
+
+        #startStopBtn:active {
+            transform: scale(0.98);
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+            background-color: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        #videoPreview {
+            width: 100%;
+            display: block;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #hiddenCanvas {
+            display: none;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .error {
+            background-color: #7f1d1d;
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 16px;
+            padding: 16px;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 LEGO Sorter</h1>
+            <p style="color: #9ca3af; font-size: 14px;">Real-time LEGO classification</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="numClasses">Classes:</label>
+                <input type="number" id="numClasses" value="10" min="1" max="100">
+            </div>
+            <button id="startStopBtn">Start</button>
+        </div>
+
+        <div class="camera-container">
+            <video id="videoPreview" autoplay playsinline></video>
+            <canvas id="overlayCanvas"></canvas>
+        </div>
+
+        <canvas id="hiddenCanvas"></canvas>
+
+        <div class="status" id="status">Ready to start</div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="detectionCount">0</div>
+                <div class="stat-label">Detections</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="frameCount">0</div>
+                <div class="stat-label">Frames</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="fps">0</div>
+                <div class="stat-label">FPS</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let stream = null;
+        let captureInterval = null;
+        let frameCount = 0;
+        let totalDetections = 0;
+        let lastFrameTime = 0;
+        let fps = 0;
+
+        const video = document.getElementById('videoPreview');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const hiddenCanvas = document.getElementById('hiddenCanvas');
+        const overlayCtx = overlayCanvas.getContext('2d');
+        const hiddenCtx = hiddenCanvas.getContext('2d');
+        const startStopBtn = document.getElementById('startStopBtn');
+        const numClassesInput = document.getElementById('numClasses');
+        const statusDiv = document.getElementById('status');
+
+        // Setup canvas dimensions when video is loaded
+        video.addEventListener('loadedmetadata', () => {
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            
+            overlayCanvas.width = width;
+            overlayCanvas.height = height;
+            hiddenCanvas.width = width;
+            hiddenCanvas.height = height;
+        });
+
+        startStopBtn.addEventListener('click', () => {
+            if (!isRunning) {
+                startCamera();
+            } else {
+                stopCamera();
+            }
+        });
+
+        async function startCamera() {
+            try {
+                // Request camera access
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // Use back camera on mobile
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+
+                video.srcObject = stream;
+                isRunning = true;
+                startStopBtn.textContent = 'Stop';
+                startStopBtn.classList.add('active');
+                statusDiv.textContent = 'Camera active - capturing frames...';
+
+                // Wait for video to be ready
+                await new Promise(resolve => {
+                    video.onloadedmetadata = resolve;
+                });
+
+                // Start capturing frames every 800ms
+                lastFrameTime = Date.now();
+                captureInterval = setInterval(captureAndClassify, 800);
+
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                statusDiv.innerHTML = `<div class="error">Camera access denied or unavailable</div>`;
+            }
+        }
+
+        function stopCamera() {
+            if (captureInterval) {
+                clearInterval(captureInterval);
+                captureInterval = null;
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+
+            video.srcObject = null;
+            isRunning = false;
+            startStopBtn.textContent = 'Start';
+            startStopBtn.classList.remove('active');
+            statusDiv.textContent = 'Stopped';
+
+            // Clear overlay
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        }
+
+        async function captureAndClassify() {
+            if (!isRunning) return;
+
+            try {
+                // Capture frame from video to hidden canvas
+                hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+
+                // Convert to JPEG blob
+                const blob = await new Promise(resolve => {
+                    hiddenCanvas.toBlob(resolve, 'image/jpeg', 0.8);
+                });
+
+                // Send to server
+                const formData = new FormData();
+                formData.append('image', blob, 'frame.jpg');
+                formData.append('numClasses', numClassesInput.value);
+
+                const response = await fetch('/classify', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // Draw detections
+                drawDetections(result.detections);
+
+                // Update stats
+                frameCount++;
+                totalDetections += result.detections.length;
+                
+                const now = Date.now();
+                const timeDiff = (now - lastFrameTime) / 1000;
+                fps = Math.round(1 / timeDiff);
+                lastFrameTime = now;
+
+                updateStats();
+                statusDiv.textContent = `Processing (${result.detections.length} detections found)`;
+
+            } catch (error) {
+                console.error('Error during classification:', error);
+                statusDiv.innerHTML = `<div class="error">Classification error: ${error.message}</div>`;
+            }
+        }
+
+        function drawDetections(detections) {
+            // Clear previous drawings
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+            detections.forEach((detection, index) => {
+                const [x1, y1, x2, y2] = detection.bbox;
+                const width = x2 - x1;
+                const height = y2 - y1;
+
+                // Generate a color based on class
+                const hue = (detection.class * 137.5) % 360; // Golden angle for color distribution
+                const color = `hsl(${hue}, 70%, 50%)`;
+
+                // Draw bounding box
+                overlayCtx.strokeStyle = color;
+                overlayCtx.lineWidth = 3;
+                overlayCtx.strokeRect(x1, y1, width, height);
+
+                // Draw label background
+                const label = `${detection.label} (${(detection.confidence * 100).toFixed(0)}%)`;
+                overlayCtx.font = 'bold 16px sans-serif';
+                const textMetrics = overlayCtx.measureText(label);
+                const textWidth = textMetrics.width;
+                const textHeight = 20;
+
+                overlayCtx.fillStyle = color;
+                overlayCtx.fillRect(x1, y1 - textHeight - 4, textWidth + 8, textHeight + 4);
+
+                // Draw label text
+                overlayCtx.fillStyle = '#000';
+                overlayCtx.fillText(label, x1 + 4, y1 - 8);
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('detectionCount').textContent = totalDetections;
+            document.getElementById('frameCount').textContent = frameCount;
+            document.getElementById('fps').textContent = fps;
+        }
+
+        // Handle page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isRunning) {
+                stopCamera();
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (isRunning) {
+                stopCamera();
+            }
+        });
+    </script>
+</body>
+</html>
